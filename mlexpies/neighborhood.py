@@ -1,12 +1,14 @@
 import numpy as np
 import pandas as pd
 from sklearn.utils.validation import check_is_fitted
+from sklearn.svm import OneClassSVM
+from functools import lru_cache
 
 
 class NeighborhoodFactory:
 
     def __init__(self, distance, radius=float('inf')):
-        self.distance  = distance
+        self.distance = distance
         self.radius = radius
 
     def create(self, sample):
@@ -56,12 +58,15 @@ class Neighborhood:
 
 class NeighborhoodDistance:
 
+    def is_soft(self):
+        return False
+
     def distance(self, center, other):
         raise NotImplemented
 
     def fit(self, X_train, dataset_info, neighborhood_fit_params=None):
         pass
-    
+
     def optimize_search_space(self, center, search_space, radius):
         return search_space
 
@@ -69,6 +74,25 @@ class NeighborhoodDistance:
 class ZeroNeighborhoodDistance(NeighborhoodDistance):
     def distance(self, center, other):
         return 0
+
+
+class ManifoldCloseness(NeighborhoodDistance):
+
+    def __init__(self, svm_params={}, distance_not_meet=float('inf')):
+        self.svm_params = svm_params
+        self.distance_not_meet = distance_not_meet
+
+    def is_soft(self):
+        return True
+
+    def fit(self, X_train, dataset_info, neighborhood_fit_params=None):
+        self.svm_ = OneClassSVM(**self.svm_params)
+        self.svm_.fit(X_train)
+
+    def distance(self, center, other):
+        other_m = np.array(other).reshape(1, -1)
+        belongs = float(np.ravel(self.svm_.score_samples(other_m))[0] - self.svm_.offset_)
+        return 0 if belongs >= 0 else self.distance_not_meet + (-belongs)
 
 
 class RestrictedNeighborhoodDistance(NeighborhoodDistance):
@@ -81,7 +105,6 @@ class RestrictedNeighborhoodDistance(NeighborhoodDistance):
         if self.cmp not in ('eq', 'leq', 'geq'):
             raise ValueError(f"Invalid comparison mode{self.cmp}")
 
-
     def distance(self, center, other):
         sample_value = center[self.feature]
         other_value = other[self.feature]
@@ -93,7 +116,7 @@ class RestrictedNeighborhoodDistance(NeighborhoodDistance):
         elif self.cmp == 'geq':
             meet = sample_value >= other_value
 
-        return 0 if meet else self.distance_not_meet 
+        return 0 if meet else self.distance_not_meet
 
     def optimize_search_space(self, center, search_space, radius):
         if self.cmp == 'eq':
@@ -112,7 +135,11 @@ class AdditiveNeighborhoodDistancesChain(NeighborhoodDistance):
 
     def __init__(self, distances):
         self.distances = distances
-    
+
+    @lru_cache
+    def is_soft(self):
+        return all(distance.is_soft() for distance in self.distances)
+
     def distance(self, center, other):
         distance_sum = self.distances[0].distance(center, other)
 
@@ -139,8 +166,11 @@ class GowerNeighborhoodDistance(NeighborhoodDistance):
 
     def fit(self, X_train, dataset_info, neighborhood_fit_params=None):
         self.dataset_info_ = dataset_info
-        self.feature_ranges = {feature: {'low': X_train[feature].min(), 'high': X_train[feature].max()} 
+        self.feature_ranges = {feature: {'low': X_train[feature].min(), 'high': X_train[feature].max()}
                                for feature in self.dataset_info_.numerical_features}
+
+    def is_soft(self):
+        return True
 
     def distance(self, center, other):
         check_is_fitted(self)
@@ -179,9 +209,13 @@ class DiversityDistance(NeighborhoodDistance):
         self.penalize_obs_ = neighborhood_fit_params['penalize_obs']
         self.base_distance.fit(X_train, dataset_info, neighborhood_fit_params)
 
+    def is_soft(self):
+        return True
+
     def distance(self, center, other):
         check_is_fitted(self)
-        
-        dist = 1 / (1+self.base_distance.distance(center, self.penalize_obs_)) + 1 / (1+self.base_distance.distance(self.penalize_obs_, other))
+
+        dist = 1 / (1 + self.base_distance.distance(center, self.penalize_obs_)) + 1 / (
+                    1 + self.base_distance.distance(self.penalize_obs_, other))
         dist = dist + self.base_distance.distance(center, other)
         return dist

@@ -71,6 +71,10 @@ def run_experiments(base_args):
     radius_small_grouping_measure = grouping_measures.RadiusGroupingMeasure(
         radius=5)
 
+    # Manifold closeness
+    manifold_closeness = neighborhood.ManifoldCloseness(distance_not_meet=10)
+    gower_with_manifold = neighborhood.AdditiveNeighborhoodDistancesChain([base_distance, manifold_closeness])
+
     # Base explanations. Groups only equals predictions
 
     # Counterfactual-based explanations
@@ -103,6 +107,15 @@ def run_experiments(base_args):
         offset=5)
     counterfactual_explanations('cc_regression_gt_offset@sgower', folds_data, base_distance,
                                 greather_than_grouping_offset, base_args=base_args, rewrite=REWRITE)
+
+
+    greather_than_grouping_offset = grouping_measures.GreatherThanGroupingMeasure(offset=5)
+    counterfactual_explanations('cc_regression_gt_offset_manifold@sgower', folds_data, gower_with_manifold,
+                               greather_than_grouping_offset, rewrite=REWRITE, radius=10)
+
+
+    counterfactual_explanations('cc_regression_rsmall_manifold@sgower', folds_data, gower_with_manifold,
+                                 grouping_measures.Negate(radius_small_grouping_measure), rewrite=REWRITE, radius=10)
 
 
 if __name__ == '__main__':

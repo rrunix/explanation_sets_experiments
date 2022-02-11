@@ -23,7 +23,7 @@ class CounterfactualLoss:
     def to_obs(self, params):
         x = np.array([params[k] if k in params else self.fixed_choices[k] for k in self.dataset_info.features])
         return x
- 
+
     def meets_grouping_measure(self, params):
         y_hat = self.model.predict(self.to_obs(params).reshape(1, -1)).reshape(-1)[0]
         return self.grouping_measure(self.y, y_hat) == 1
@@ -38,15 +38,23 @@ class CounterfactualLoss:
 
     def __call__(self, params):
         self.n_calls += 1
-        if not self.belongs_neighborhood(params) or not self.meets_grouping_measure(params):
+
+        if self.meets_grouping_measure(params):
             return self.not_meet_loss
-        
+
+        if self.neighborhood.base_distance.is_soft():
+            return self.neighborhood.distance(pd.Series(params))
+
+        if not self.belongs_neighborhood(params):
+            return self.not_meet_loss
+
         return self.neighborhood.distance(pd.Series(params))
 
 
 class CounterfactualExplainer(explainer.Explainer):
 
-    def __init__(self, grouping_measure, neighborhood_factory, not_meet_loss=10, max_evals=300, evaluate_dataset=True, max_warmup_size=2500):
+    def __init__(self, grouping_measure, neighborhood_factory, not_meet_loss=10, max_evals=300, evaluate_dataset=True,
+                 max_warmup_size=2500):
         self.grouping_measure = grouping_measure
         self.neighborhood_factory = neighborhood_factory
         self.not_meet_loss = not_meet_loss
@@ -140,15 +148,16 @@ class CounterfactualExplainer(explainer.Explainer):
         search_space = neighborhood.optimize_search_space(search_space)
         converted_search_space, fixed_choices = self._convert_search_space(search_space)
         loss = CounterfactualLoss(self.model_, sample, self.grouping_measure,
-                                  neighborhood, self.dataset_info_, not_meet_loss=self.not_meet_loss, fixed_choices=fixed_choices)
-        
+                                  neighborhood, self.dataset_info_, not_meet_loss=self.not_meet_loss,
+                                  fixed_choices=fixed_choices)
+
         best = None
         extraction_method = ''
         if self.max_evals > 0:
             points_to_evaluate = self._calculate_initial_sample(search_space, loss)
 
-            best = fmin(fn=loss, space=converted_search_space, algo=tpe.suggest, max_evals=self.max_evals, 
-                show_progressbar=False, points_to_evaluate=points_to_evaluate)
+            best = fmin(fn=loss, space=converted_search_space, algo=tpe.suggest, max_evals=self.max_evals,
+                        show_progressbar=False, points_to_evaluate=points_to_evaluate)
             best = self._convert_back(search_space, best)
             extraction_method = 'bayesian search'
 
@@ -166,11 +175,11 @@ class CounterfactualExplainer(explainer.Explainer):
             belongs_neighborhood = False
             meets_grouping_measure = False
             loss_v = np.inf
-        else:          
+        else:
             belongs_neighborhood = loss.belongs_neighborhood(best)
             meets_grouping_measure = loss.meets_grouping_measure(best)
             loss_v = loss(best)
-        
+
         explanation = {
             'actual': loss.y,
             'counterfactual_class': self.model_.predict(loss.to_obs(best).reshape(1, -1))[0],
@@ -181,5 +190,5 @@ class CounterfactualExplainer(explainer.Explainer):
             'meets_grouping_measure': meets_grouping_measure,
             'extraction_method': extraction_method
         }
-        #print(explanation)
+        # print(explanation)
         return explanation
