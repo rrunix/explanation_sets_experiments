@@ -78,44 +78,49 @@ def run_experiments(base_args):
     # Base explanations. Groups only equals predictions
 
     # Counterfactual-based explanations
-    counterfactual_explanations('cc_regression_rsmall@sgower', folds_data, base_distance,
-                                grouping_measures.Negate(radius_small_grouping_measure), base_args=base_args, rewrite=REWRITE)
-
-    # Semifactual-based explanations
-    anchor_explanations('sf_regression_rsmall@sgower', folds_data,
-                        base_distance, radius_small_grouping_measure, base_args=base_args, rewrite=REWRITE)
+    # counterfactual_explanations('cc_regression_rsmall@sgower', folds_data, base_distance,
+    #                             grouping_measures.Negate(radius_small_grouping_measure), base_args=base_args, rewrite=REWRITE)
+    #
+    # # Semifactual-based explanations
+    # anchor_explanations('sf_regression_rsmall@sgower', folds_data,
+    #                     base_distance, radius_small_grouping_measure, base_args=base_args, rewrite=REWRITE)
 
     # Now, two predictions are grouping if they distance (L1-norm) is less than or equals to 1
     radius_big_grouping_measure = grouping_measures.RadiusGroupingMeasure(
         radius=10)
 
-    # Counterfactual-based explanations
-    counterfactual_explanations('cc_regression_rbig@sgower', folds_data, base_distance,
-                                grouping_measures.Negate(radius_big_grouping_measure), base_args=base_args, rewrite=REWRITE)
-
-    # Semifactual-based explanations
-    anchor_explanations('sf_regression_rbig@sgower', folds_data,
-                        base_distance, radius_big_grouping_measure, rewrite=REWRITE)
+    # # Counterfactual-based explanations
+    # counterfactual_explanations('cc_regression_rbig@sgower', folds_data, base_distance,
+    #                             grouping_measures.Negate(radius_big_grouping_measure), base_args=base_args, rewrite=REWRITE)
+    #
+    # # Semifactual-based explanations
+    # anchor_explanations('sf_regression_rbig@sgower', folds_data,
+    #                     base_distance, radius_big_grouping_measure, rewrite=REWRITE)
 
     # Finally, since increasing the quality is the desired outcome, we only consider counterfactuals whose prediction is greater than that of the
     # observation of interest.
     greather_than_grouping = grouping_measures.GreatherThanGroupingMeasure()
-    counterfactual_explanations('cc_regression_gt@sgower', folds_data, base_distance,
-                                greather_than_grouping, base_args=base_args, rewrite=REWRITE)
+    # counterfactual_explanations('cc_regression_gt@sgower', folds_data, base_distance,
+    #                             greather_than_grouping, base_args=base_args, rewrite=REWRITE)
 
     greather_than_grouping_offset = grouping_measures.GreatherThanGroupingMeasure(
         offset=5)
-    counterfactual_explanations('cc_regression_gt_offset@sgower', folds_data, base_distance,
-                                greather_than_grouping_offset, base_args=base_args, rewrite=REWRITE)
+    # counterfactual_explanations('cc_regression_gt_offset@sgower', folds_data, base_distance,
+    #                             greather_than_grouping_offset, base_args=base_args, rewrite=REWRITE)
 
 
-    greather_than_grouping_offset = grouping_measures.GreatherThanGroupingMeasure(offset=5)
+    counterfactual_explanations('cc_regression_gt_manifold@sgower', folds_data, gower_with_manifold,
+                                greather_than_grouping, base_args=base_args, rewrite=REWRITE)
+
     counterfactual_explanations('cc_regression_gt_offset_manifold@sgower', folds_data, gower_with_manifold,
-                               greather_than_grouping_offset, rewrite=REWRITE, radius=10)
+                               greather_than_grouping_offset, base_args=base_args, rewrite=REWRITE, radius=10)
 
+    counterfactual_explanations('cc_regression_rbig_manifold@sgower', folds_data, gower_with_manifold,
+                                grouping_measures.Negate(radius_big_grouping_measure), base_args=base_args,
+                                rewrite=REWRITE)
 
     counterfactual_explanations('cc_regression_rsmall_manifold@sgower', folds_data, gower_with_manifold,
-                                 grouping_measures.Negate(radius_small_grouping_measure), rewrite=REWRITE, radius=10)
+                                 grouping_measures.Negate(radius_small_grouping_measure), base_args=base_args, rewrite=REWRITE, radius=10)
 
 
 if __name__ == '__main__':
