@@ -64,6 +64,9 @@ def run_experiments(base_args):
     # Load model data
     folds_data = joblib.load(os.path.join(BASE_FOLDER, 'folds.bz2'))
 
+    # Radius
+    penalization_radius = 30
+
     # Base distance
     base_distance = neighborhood.GowerNeighborhoodDistance()
 
@@ -72,7 +75,7 @@ def run_experiments(base_args):
         radius=5)
 
     # Manifold closeness
-    manifold_closeness = neighborhood.ManifoldCloseness(distance_not_meet=10)
+    manifold_closeness = neighborhood.ManifoldCloseness(distance_not_meet=penalization_radius)
     gower_with_manifold = neighborhood.AdditiveNeighborhoodDistancesChain([base_distance, manifold_closeness])
 
     # Base explanations. Groups only equals predictions
@@ -110,17 +113,18 @@ def run_experiments(base_args):
 
 
     counterfactual_explanations('cc_regression_gt_manifold@sgower', folds_data, gower_with_manifold,
-                                greather_than_grouping, base_args=base_args, rewrite=REWRITE)
+                                greather_than_grouping, base_args=base_args, rewrite=REWRITE, radius=penalization_radius)
 
     counterfactual_explanations('cc_regression_gt_offset_manifold@sgower', folds_data, gower_with_manifold,
-                               greather_than_grouping_offset, base_args=base_args, rewrite=REWRITE, radius=10)
+                               greather_than_grouping_offset, base_args=base_args, rewrite=REWRITE, radius=penalization_radius)
 
     counterfactual_explanations('cc_regression_rbig_manifold@sgower', folds_data, gower_with_manifold,
                                 grouping_measures.Negate(radius_big_grouping_measure), base_args=base_args,
-                                rewrite=REWRITE)
+                                rewrite=REWRITE, radius=penalization_radius)
 
     counterfactual_explanations('cc_regression_rsmall_manifold@sgower', folds_data, gower_with_manifold,
-                                 grouping_measures.Negate(radius_small_grouping_measure), base_args=base_args, rewrite=REWRITE, radius=10)
+                                 grouping_measures.Negate(radius_small_grouping_measure), base_args=base_args,
+                                rewrite=REWRITE, radius=penalization_radius)
 
 
 if __name__ == '__main__':

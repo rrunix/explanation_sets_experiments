@@ -39,7 +39,7 @@ class CounterfactualLoss:
     def __call__(self, params):
         self.n_calls += 1
 
-        if self.meets_grouping_measure(params):
+        if not self.meets_grouping_measure(params):
             return self.not_meet_loss
 
         if self.neighborhood.base_distance.is_soft():
